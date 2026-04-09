@@ -1,15 +1,15 @@
-// Spazi affittabili – ispirato a layout tipo MICO Milano (padiglione evento)
+// Rentable stand definitions – inspired by MICO Milano trade fair layout
 export interface RentalSpace {
   id: string;
   name: string;
   zone: string;
   sqm: number;
-  x: number;       // coordinate SVG
+  x: number;       // SVG coordinate
   y: number;
   width: number;
   height: number;
   type: 'premium' | 'standard' | 'corner' | 'anchor';
-  basePrice: number; // €/giorno
+  basePrice: number; // €/day
   features: string[];
 }
 

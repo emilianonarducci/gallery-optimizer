@@ -3,14 +3,14 @@ import { ZoneTrafficSummary } from '@/data/traffic';
 
 export interface SpaceScore {
   spaceId: string;
-  trafficScore: number;    // 0-100: flusso medio zona
-  peakScore: number;       // 0-100: picco dispositivi
-  dwellScore: number;      // 0-100: tempo di sosta
-  visibilityScore: number; // 0-100: tipo posizione (corner, isola, etc.)
+  trafficScore: number;    // 0-100: average zone traffic
+  peakScore: number;       // 0-100: peak device count
+  dwellScore: number;      // 0-100: average dwell time
+  visibilityScore: number; // 0-100: stand type position (corner, island, etc.)
   totalScore: number;      // 0-100 weighted
   tier: 'S' | 'A' | 'B' | 'C';
-  estimatedImpressions: number; // contatti/giorno stimati
-  revenueIndex: number;    // moltiplicatore sul prezzo base
+  estimatedImpressions: number; // estimated daily contacts
+  revenueIndex: number;    // multiplier on base price
 }
 
 const TIER_THRESHOLDS = { S: 80, A: 65, B: 45 };
@@ -37,7 +37,7 @@ export function scoreSpaces(spaces: RentalSpace[], summaries: ZoneTrafficSummary
     const dwellScore = Math.round((summary.dwellMinutes / maxDwell) * 100);
     const visibilityScore = VISIBILITY_BONUS[space.type] ?? 40;
 
-    // Pesi: flusso 35%, picco 25%, visibilità 25%, dwell 15%
+    // Weights: traffic 35%, peak 25%, visibility 25%, dwell 15%
     const totalScore = Math.round(
       trafficScore * 0.35 +
       peakScore * 0.25 +
@@ -50,12 +50,12 @@ export function scoreSpaces(spaces: RentalSpace[], summaries: ZoneTrafficSummary
       totalScore >= TIER_THRESHOLDS.A ? 'A' :
       totalScore >= TIER_THRESHOLDS.B ? 'B' : 'C';
 
-    // Impressioni stimate (pass-by giornalieri proporzionali alla zona)
+    // Estimated impressions (daily pass-by proportional to zone traffic)
     const estimatedImpressions = Math.round(
       (summary.totalPassBy / maxPassBy) * 3500 * (visibilityScore / 100)
     );
 
-    // Revenue index: moltiplicatore suggerito sul prezzo base
+    // Revenue index: suggested multiplier on base price
     const revenueIndex = 0.5 + (totalScore / 100) * 1.5;
 
     return { spaceId: space.id, trafficScore, peakScore, dwellScore, visibilityScore, totalScore, tier, estimatedImpressions, revenueIndex: Math.round(revenueIndex * 100) / 100 };

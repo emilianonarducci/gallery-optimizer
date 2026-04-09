@@ -3,27 +3,37 @@
 import { useState, useMemo } from 'react';
 import { SPACES } from '@/data/spaces';
 import { TRAFFIC_DATA, ZONE_SUMMARIES } from '@/data/traffic';
-import { scoreSpaces, TIER_COLORS } from '@/lib/scoring';
+import { scoreSpaces } from '@/lib/scoring';
+import { LAYOUTS, applyLayout } from '@/data/layouts';
 import FloorPlan from '@/components/FloorPlan';
 import TimeSlider from '@/components/TimeSlider';
 import SpaceDetail from '@/components/SpaceDetail';
-import RankingList from '@/components/RankingList';
-import { BarChart2, Flame, MapPin, Info } from 'lucide-react';
+import KpiCards from '@/components/KpiCards';
+import { computeKpiSummary } from '@/components/LayoutSelector';
+import { ChevronDown, Flame, Info } from 'lucide-react';
 
-const ALL_SCORES = scoreSpaces(SPACES, ZONE_SUMMARIES);
+// Precompute scores and KPI summaries for every layout (static data, runs once)
+const LAYOUT_DATA = LAYOUTS.map(layout => {
+  const spaces = applyLayout(layout);
+  const scores = scoreSpaces(spaces, ZONE_SUMMARIES);
+  const kpi = computeKpiSummary(scores, spaces, ZONE_SUMMARIES);
+  return { layout, spaces, scores, kpi };
+});
 
-const totalRevenue = SPACES.reduce((acc, s) => {
-  const score = ALL_SCORES.find(sc => sc.spaceId === s.id);
-  if (!score) return acc;
-  return acc + Math.round(s.basePrice * score.revenueIndex / 50) * 50;
-}, 0);
-
-const avgScore = Math.round(ALL_SCORES.reduce((a, s) => a + s.totalScore, 0) / ALL_SCORES.length);
+const KPI_SUMMARIES = Object.fromEntries(
+  LAYOUT_DATA.map(({ layout, kpi }) => [layout.id, kpi]),
+);
 
 export default function Home() {
   const [selectedSpace, setSelectedSpace] = useState<string | null>(null);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [currentMinute, setCurrentMinute] = useState(570); // 09:30
+  const [activeLayoutId, setActiveLayoutId] = useState('balanced');
+
+  const { spaces: activeSpaces, scores: activeScores } = useMemo(
+    () => LAYOUT_DATA.find(d => d.layout.id === activeLayoutId)!,
+    [activeLayoutId],
+  );
 
   const trafficByZone = useMemo<Record<string, number>>(() => {
     const snapshot = TRAFFIC_DATA.filter(s => s.minuteOfDay === currentMinute);
@@ -31,14 +41,17 @@ export default function Home() {
     return Object.fromEntries(snapshot.map(s => [s.zone, s.devices / maxDevices]));
   }, [currentMinute]);
 
-  const selectedSpaceData = selectedSpace ? SPACES.find(s => s.id === selectedSpace) : null;
-  const selectedScore = selectedSpace ? ALL_SCORES.find(s => s.spaceId === selectedSpace) : null;
-  const selectedZoneSummary = selectedSpace ? ZONE_SUMMARIES.find(z => z.zone === selectedSpaceData?.zone) : null;
+  const selectedSpaceData = selectedSpace ? activeSpaces.find(s => s.id === selectedSpace) : null;
+  const selectedScore = selectedSpace ? activeScores.find(s => s.spaceId === selectedSpace) : null;
+  const selectedZoneSummary = selectedSpace
+    ? ZONE_SUMMARIES.find(z => z.zone === selectedSpaceData?.zone)
+    : null;
 
-  const tierCounts = ALL_SCORES.reduce((acc, s) => {
-    acc[s.tier] = (acc[s.tier] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  // Clear selection when switching layouts
+  const handleLayoutChange = (id: string) => {
+    setSelectedSpace(null);
+    setActiveLayoutId(id);
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -48,32 +61,32 @@ export default function Home() {
             <h1 className="text-xl font-black text-slate-900 tracking-tight">Gallery Space Optimizer</h1>
             <p className="text-xs text-slate-500 mt-0.5">IAB Forum · MICO Milano · WiFi counting footfall analysis</p>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              {(['S','A','B','C'] as const).map(t => (
-                <div key={t} className="flex items-center gap-1">
-                  <span className="text-xs font-black px-2 py-0.5 rounded-full" style={{ background: TIER_COLORS[t] + '22', color: TIER_COLORS[t] }}>
-                    {t}
-                  </span>
-                  <span className="text-xs font-bold text-slate-600">{tierCounts[t] ?? 0}</span>
-                </div>
-              ))}
-            </div>
-            <div className="h-8 w-px bg-slate-200" />
-            <div className="text-right">
-              <div className="text-xs text-slate-500">Potential revenue</div>
-              <div className="text-base font-black text-slate-800">€{totalRevenue.toLocaleString()}/day</div>
-            </div>
-            <div className="text-right">
-              <div className="text-xs text-slate-500">Avg score</div>
-              <div className="text-base font-black text-indigo-600">{avgScore}/100</div>
-            </div>
-          </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-center gap-3 mb-4">
+          {/* Layout dropdown */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">Floor plan layout</span>
+            <div className="relative">
+              <select
+                value={activeLayoutId}
+                onChange={e => handleLayoutChange(e.target.value)}
+                className="appearance-none bg-white border border-slate-200 rounded-xl pl-3 pr-8 py-1.5 text-sm font-semibold text-slate-700 shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+              >
+                {LAYOUTS.map(l => (
+                  <option key={l.id} value={l.id}>
+                    {l.name} — {l.tagline}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+
+          <div className="h-5 w-px bg-slate-200" />
+
           <button
             onClick={() => setShowHeatmap(!showHeatmap)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all ${showHeatmap ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
@@ -87,57 +100,42 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
-          <div className="xl:col-span-3 space-y-4">
-            <FloorPlan
-              spaces={SPACES}
-              scores={ALL_SCORES}
-              selectedSpace={selectedSpace}
-              onSelectSpace={setSelectedSpace}
-              showHeatmap={showHeatmap}
-              trafficByZone={trafficByZone}
-            />
-            <TimeSlider
-              samples={TRAFFIC_DATA}
-              currentMinute={currentMinute}
-              onChange={setCurrentMinute}
-            />
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { label: 'Total spaces', value: SPACES.length, icon: <MapPin size={16} className="text-indigo-400" /> },
-                { label: 'Est. attendees', value: '~1,500', icon: <BarChart2 size={16} className="text-emerald-400" /> },
-                { label: 'Total impressions/day', value: ALL_SCORES.reduce((a,s) => a + s.estimatedImpressions, 0).toLocaleString(), icon: <Flame size={16} className="text-amber-400" /> },
-                { label: 'Top tier spaces (S+A)', value: (tierCounts['S'] ?? 0) + (tierCounts['A'] ?? 0), icon: <BarChart2 size={16} className="text-rose-400" /> },
-              ].map(stat => (
-                <div key={stat.label} className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
-                  <div className="flex items-center gap-2 mb-1">{stat.icon}<span className="text-xs text-slate-500">{stat.label}</span></div>
-                  <div className="text-xl font-black text-slate-800">{stat.value}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+        <div className="space-y-3">
+          <KpiCards
+            scores={activeScores}
+            spaces={activeSpaces}
+            zoneSummaries={ZONE_SUMMARIES}
+          />
 
-          <div className="xl:col-span-1 space-y-4">
-            {selectedSpaceData && selectedScore && selectedZoneSummary ? (
-              <SpaceDetail
-                space={selectedSpaceData}
-                score={selectedScore}
-                zoneSummary={selectedZoneSummary}
-                onClose={() => setSelectedSpace(null)}
+          {/* Floor plan + detail side by side */}
+          <div className={`grid grid-cols-1 gap-4 items-stretch ${selectedSpace ? 'lg:grid-cols-4' : ''}`}>
+            <div className={selectedSpace ? 'lg:col-span-3' : ''}>
+              <FloorPlan
+                spaces={activeSpaces}
+                scores={activeScores}
+                selectedSpace={selectedSpace}
+                onSelectSpace={setSelectedSpace}
+                showHeatmap={showHeatmap}
+                trafficByZone={trafficByZone}
               />
-            ) : (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 text-center shadow-sm">
-                <MapPin size={24} className="text-slate-300 mx-auto mb-2" />
-                <p className="text-sm text-slate-400">Select a space on the floor plan to view details and the optimised price</p>
+            </div>
+            {selectedSpaceData && selectedScore && selectedZoneSummary && (
+              <div className="lg:col-span-1 h-full">
+                <SpaceDetail
+                  space={selectedSpaceData}
+                  score={selectedScore}
+                  zoneSummary={selectedZoneSummary}
+                  onClose={() => setSelectedSpace(null)}
+                />
               </div>
             )}
-            <RankingList
-              spaces={SPACES}
-              scores={ALL_SCORES}
-              selectedSpace={selectedSpace}
-              onSelect={id => setSelectedSpace(prev => prev === id ? null : id)}
-            />
           </div>
+
+          <TimeSlider
+            samples={TRAFFIC_DATA}
+            currentMinute={currentMinute}
+            onChange={setCurrentMinute}
+          />
         </div>
       </main>
     </div>

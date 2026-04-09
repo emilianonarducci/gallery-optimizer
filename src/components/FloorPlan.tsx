@@ -12,11 +12,46 @@ interface Props {
   trafficByZone: Record<string, number>; // 0-1 normalized
 }
 
+// ─── Fixed non-allocatable fixtures ──────────────────────────────────────────
+// These are structural constraints of the venue; they appear on every layout.
+interface Fixture {
+  id: string;
+  label: string;
+  sublabel?: string;
+  x: number; y: number; w: number; h: number;
+  fill: string;
+  stroke: string;
+  textColor: string;
+  vertical?: boolean; // true → rotate label 90° (for narrow strips)
+  hatch?: 'grey' | 'red';
+}
+
+const FIXTURES: Fixture[] = [
+  // Toilets: narrow vertical strips on west and east walls
+  { id: 'wc_w',    label: 'WC',          x: 63,  y: 222, w: 16, h: 96,  fill: '#f1f5f9', stroke: '#94a3b8', textColor: '#64748b', vertical: true,  hatch: 'grey' },
+  { id: 'wc_e',    label: 'WC',          x: 721, y: 222, w: 16, h: 96,  fill: '#f1f5f9', stroke: '#94a3b8', textColor: '#64748b', vertical: true,  hatch: 'grey' },
+  // Emergency fire exits: lower section of east/west walls
+  { id: 'fire_sw', label: 'EXIT',        x: 63,  y: 480, w: 16, h: 55,  fill: '#fee2e2', stroke: '#ef4444', textColor: '#ef4444', vertical: true,  hatch: 'red'  },
+  { id: 'fire_se', label: 'EXIT',        x: 721, y: 480, w: 16, h: 55,  fill: '#fee2e2', stroke: '#ef4444', textColor: '#ef4444', vertical: true,  hatch: 'red'  },
+  // Emergency exit sign at north wall (above entrance)
+  { id: 'fire_n',  label: '🚪 Emergency Exit', x: 490, y: 52,  w: 68,  h: 28,  fill: '#fee2e2', stroke: '#ef4444', textColor: '#ef4444' },
+  // Technical / service room (cables, AV, logistics)
+  { id: 'tech',    label: '⚙ Technical Room',  x: 492, y: 390, w: 78,  h: 80,  fill: '#f8fafc', stroke: '#94a3b8', textColor: '#94a3b8', hatch: 'grey' },
+  // Info desk near north entrance
+  { id: 'info',    label: 'ℹ Info Point',       x: 373, y: 52,  w: 76,  h: 28,  fill: '#eff6ff', stroke: '#3b82f6', textColor: '#3b82f6' },
+  // First aid station
+  { id: 'aid',     label: '✚ First Aid',         x: 165, y: 52,  w: 58,  h: 28,  fill: '#f0fdf4', stroke: '#22c55e', textColor: '#16a34a' },
+];
+
 export default function FloorPlan({ spaces, scores, selectedSpace, onSelectSpace, showHeatmap, trafficByZone }: Props) {
   const scoreMap = Object.fromEntries(scores.map(s => [s.spaceId, s]));
 
+  const tierCounts = scores.reduce((acc, s) => {
+    acc[s.tier] = (acc[s.tier] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   function heatColor(intensity: number): string {
-    // blue → yellow → red
     if (intensity < 0.33) {
       const t = intensity / 0.33;
       return `rgba(59,130,246,${0.15 + t * 0.25})`;
@@ -36,17 +71,9 @@ export default function FloorPlan({ spaces, scores, selectedSpace, onSelectSpace
     return `${TIER_COLORS[score.tier]}55`;
   }
 
-  function tierBadgeX(space: RentalSpace): number {
-    return space.x + space.width - 18;
-  }
-  function tierBadgeY(space: RentalSpace): number {
-    return space.y + 4;
-  }
-
-  // Zone background rectangles (aree logiche)
   const zoneAreas = [
-    { zone: 'north_entrance', x: 60, y: 60, w: 320, h: 120 },
-    { zone: 'west_wing',      x: 60, y: 210, w: 120, h: 340 },
+    { zone: 'north_entrance', x: 60,  y: 60,  w: 320, h: 120 },
+    { zone: 'west_wing',      x: 60,  y: 210, w: 120, h: 340 },
     { zone: 'east_wing',      x: 620, y: 210, w: 120, h: 340 },
     { zone: 'central',        x: 200, y: 210, w: 460, h: 170 },
     { zone: 'food_area',      x: 200, y: 370, w: 280, h: 110 },
@@ -56,10 +83,20 @@ export default function FloorPlan({ spaces, scores, selectedSpace, onSelectSpace
   return (
     <div className="relative w-full bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
       <svg viewBox="0 0 800 640" className="w-full" style={{ maxHeight: 520 }}>
-        {/* Sfondo venue */}
+        <defs>
+          {/* Diagonal hatch patterns for non-allocatable fixtures */}
+          <pattern id="hatch-grey" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="6" stroke="#94a3b8" strokeWidth="1" opacity="0.5" />
+          </pattern>
+          <pattern id="hatch-red" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="6" stroke="#ef4444" strokeWidth="1" opacity="0.5" />
+          </pattern>
+        </defs>
+
+        {/* Venue shell */}
         <rect x="50" y="50" width="700" height="560" rx="12" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
 
-        {/* Zone logiche con heatmap opzionale */}
+        {/* Zone backgrounds */}
         {zoneAreas.map(area => {
           const intensity = trafficByZone[area.zone] ?? 0;
           return (
@@ -72,34 +109,66 @@ export default function FloorPlan({ spaces, scores, selectedSpace, onSelectSpace
                 strokeWidth="1.5"
                 strokeDasharray="4 3"
               />
-              <text
-                x={area.x + 8} y={area.y + 16}
-                fontSize="9" fill={ZONES[area.zone]?.color ?? '#64748b'}
-                fontFamily="system-ui" fontWeight="600" opacity="0.7"
-              >
+              <text x={area.x + 8} y={area.y + 15} fontSize="9" fill={ZONES[area.zone]?.color ?? '#64748b'} fontFamily="system-ui" fontWeight="600" opacity="0.7">
                 {ZONES[area.zone]?.label}
               </text>
             </g>
           );
         })}
 
-        {/* Corridoi principali */}
-        <line x1="190" y1="60" x2="190" y2="580" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="3 4" />
-        <line x1="640" y1="60" x2="640" y2="580" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="3 4" />
-        <line x1="60" y1="390" x2="740" y2="390" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="3 4" />
+        {/* Corridor guides */}
+        <line x1="190" y1="60"  x2="190" y2="580" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="3 4" />
+        <line x1="640" y1="60"  x2="640" y2="580" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="3 4" />
+        <line x1="60"  y1="390" x2="740" y2="390" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="3 4" />
 
-        {/* Entrance arrows */}
-        <text x="375" y="42" fontSize="10" fill="#64748b" textAnchor="middle" fontFamily="system-ui">↓ MAIN ENTRANCE ↓</text>
+        {/* Entrance / exit labels */}
+        <text x="375" y="42"  fontSize="10" fill="#64748b" textAnchor="middle" fontFamily="system-ui">↓ MAIN ENTRANCE ↓</text>
         <text x="375" y="622" fontSize="10" fill="#64748b" textAnchor="middle" fontFamily="system-ui">↑ EXIT / PLENARY HALL ↑</text>
 
-        {/* Plenary hall (reference) */}
-        <rect x="200" y="590" width="400" height="30" rx="4" fill="#e0e7ff" stroke="#a5b4fc" strokeWidth="1.5" />
-        <text x="400" y="610" fontSize="10" fill="#4f46e5" textAnchor="middle" fontFamily="system-ui" fontWeight="600">PLENARY HALL</text>
+        {/* Plenary hall reference */}
+        <rect x="200" y="590" width="400" height="28" rx="4" fill="#e0e7ff" stroke="#a5b4fc" strokeWidth="1.5" />
+        <text x="400" y="608" fontSize="10" fill="#4f46e5" textAnchor="middle" fontFamily="system-ui" fontWeight="600">PLENARY HALL</text>
 
-        {/* Spazi affittabili */}
+        {/* ── Non-allocatable fixtures ── */}
+        {FIXTURES.map(f => {
+          const cx = f.x + f.w / 2;
+          const cy = f.y + f.h / 2;
+          return (
+            <g key={f.id}>
+              {/* Background fill */}
+              <rect x={f.x} y={f.y} width={f.w} height={f.h} rx="3" fill={f.fill} stroke={f.stroke} strokeWidth="1.5" strokeDasharray="3 2" />
+              {/* Hatch overlay */}
+              {f.hatch && (
+                <rect x={f.x} y={f.y} width={f.w} height={f.h} rx="3" fill={`url(#hatch-${f.hatch})`} />
+              )}
+              {/* Label */}
+              {f.vertical ? (
+                <text
+                  x={cx} y={cy}
+                  fontSize="8"
+                  fill={f.textColor}
+                  textAnchor="middle"
+                  fontFamily="system-ui"
+                  fontWeight="700"
+                  transform={`rotate(-90 ${cx} ${cy})`}
+                >
+                  {f.label}
+                </text>
+              ) : (
+                <text x={cx} y={cy + 4} fontSize="8" fill={f.textColor} textAnchor="middle" fontFamily="system-ui" fontWeight="700">
+                  {f.label}
+                </text>
+              )}
+            </g>
+          );
+        })}
+
+        {/* ── Rentable stands ── */}
         {spaces.map(space => {
           const score = scoreMap[space.id];
           const isSelected = selectedSpace === space.id;
+          const bx = space.x + space.width - 18;
+          const by = space.y + 4;
           return (
             <g key={space.id} onClick={() => onSelectSpace(isSelected ? null : space.id)} style={{ cursor: 'pointer' }}>
               <rect
@@ -108,36 +177,18 @@ export default function FloorPlan({ spaces, scores, selectedSpace, onSelectSpace
                 fill={spaceColor(space)}
                 stroke={isSelected ? TIER_COLORS[score?.tier ?? 'C'] : '#94a3b8'}
                 strokeWidth={isSelected ? 2.5 : 1.5}
-                className="transition-all duration-150"
+                className="transition-all duration-200"
               />
-              {/* ID spazio */}
-              <text
-                x={space.x + space.width / 2} y={space.y + space.height / 2 - 4}
-                fontSize="11" textAnchor="middle" fill="#1e293b"
-                fontFamily="system-ui" fontWeight="700"
-              >
+              <text x={space.x + space.width / 2} y={space.y + space.height / 2 - 4} fontSize="11" textAnchor="middle" fill="#1e293b" fontFamily="system-ui" fontWeight="700">
                 {space.id}
               </text>
-              <text
-                x={space.x + space.width / 2} y={space.y + space.height / 2 + 9}
-                fontSize="8" textAnchor="middle" fill="#475569"
-                fontFamily="system-ui"
-              >
+              <text x={space.x + space.width / 2} y={space.y + space.height / 2 + 9} fontSize="8" textAnchor="middle" fill="#475569" fontFamily="system-ui">
                 {space.sqm}m²
               </text>
-              {/* Tier badge */}
               {score && (
                 <>
-                  <rect
-                    x={tierBadgeX(space)} y={tierBadgeY(space)}
-                    width="16" height="16" rx="3"
-                    fill={TIER_COLORS[score.tier]}
-                  />
-                  <text
-                    x={tierBadgeX(space) + 8} y={tierBadgeY(space) + 11}
-                    fontSize="9" textAnchor="middle" fill="white"
-                    fontFamily="system-ui" fontWeight="800"
-                  >
+                  <rect x={bx} y={by} width="16" height="16" rx="3" fill={TIER_COLORS[score.tier]} />
+                  <text x={bx + 8} y={by + 11} fontSize="9" textAnchor="middle" fill="white" fontFamily="system-ui" fontWeight="800">
                     {score.tier}
                   </text>
                 </>
@@ -146,16 +197,24 @@ export default function FloorPlan({ spaces, scores, selectedSpace, onSelectSpace
           );
         })}
 
-        {/* Legenda tier */}
-        {['S','A','B','C'].map((t, i) => (
-          <g key={t}>
-            <rect x={620 + i * 26} y={56} width="20" height="14" rx="3" fill={TIER_COLORS[t]} />
-            <text x={630 + i * 26} y={67} fontSize="8" textAnchor="middle" fill="white" fontFamily="system-ui" fontWeight="800">{t}</text>
-          </g>
-        ))}
-        <text x="620" y="50" fontSize="8" fill="#64748b" fontFamily="system-ui">Tier:</text>
+        {/* Fixture legend */}
+        <rect x="52" y="597" width="10" height="10" rx="2" fill="#f1f5f9" stroke="#94a3b8" strokeWidth="1" strokeDasharray="2 1" />
+        <rect x="52" y="597" width="10" height="10" rx="2" fill="url(#hatch-grey)" />
+        <text x="66" y="606" fontSize="8" fill="#64748b" fontFamily="system-ui">Non-allocatable</text>
 
       </svg>
+
+      {/* Tier legend — outside SVG for readability */}
+      <div className="flex items-center gap-2 px-4 py-2.5 border-t border-slate-100">
+        <span className="text-xs font-semibold text-slate-400 mr-1">Stand distribution</span>
+        {(['S', 'A', 'B', 'C'] as const).map(t => (
+          <div key={t} className="flex items-center gap-1.5">
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded text-white text-xs font-black" style={{ background: TIER_COLORS[t] }}>{t}</span>
+            <span className="text-sm font-bold text-slate-700">{tierCounts[t] ?? 0}</span>
+            <span className="text-xs text-slate-400 mr-1">stands</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -19,7 +19,7 @@ export default function TimeSlider({ samples, currentMinute, onChange }: Props) 
     return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
   }
 
-  // Picchi per chart sparkline
+  // Aggregate devices per time slot for sparkline
   const totalPerTime = times.map(t => {
     const ss = samples.filter(s => s.minuteOfDay === t);
     return { t, v: ss.reduce((a, s) => a + s.devices, 0) };
@@ -35,7 +35,7 @@ export default function TimeSlider({ samples, currentMinute, onChange }: Props) 
         <span className="text-lg font-bold text-indigo-600 tabular-nums">{minuteToLabel(currentMinute)}</span>
       </div>
 
-      {/* Sparkline traffico totale */}
+      {/* Total traffic sparkline */}
       <svg viewBox="0 0 480 40" className="w-full mb-2">
         {totalPerTime.map(({ t, v }, i) => {
           const h = (v / maxTotal) * 32;
@@ -61,7 +61,7 @@ export default function TimeSlider({ samples, currentMinute, onChange }: Props) 
         value={currentMinute}
         onChange={e => {
           const v = Number(e.target.value);
-          // snap al valore più vicino disponibile
+          // Snap to nearest available sample
           const closest = times.reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a);
           onChange(closest);
         }}
