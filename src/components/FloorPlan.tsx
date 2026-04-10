@@ -51,17 +51,29 @@ export default function FloorPlan({ spaces, scores, selectedSpace, onSelectSpace
     return acc;
   }, {} as Record<string, number>);
 
-  function heatColor(intensity: number): string {
-    if (intensity < 0.33) {
-      const t = intensity / 0.33;
-      return `rgba(59,130,246,${0.15 + t * 0.25})`;
-    } else if (intensity < 0.66) {
-      const t = (intensity - 0.33) / 0.33;
-      return `rgba(245,158,11,${0.2 + t * 0.3})`;
-    } else {
-      const t = (intensity - 0.66) / 0.34;
-      return `rgba(239,68,68,${0.3 + t * 0.4})`;
+  function heatmapColor(intensity: number): string {
+    // Blue → Cyan → Green → Yellow → Orange → Red
+    const stops: [number, [number, number, number]][] = [
+      [0.00, [0,   0,   255]],
+      [0.20, [0,   100, 255]],
+      [0.40, [0,   220, 150]],
+      [0.55, [0,   200, 0  ]],
+      [0.70, [200, 255, 0  ]],
+      [0.85, [255, 140, 0  ]],
+      [1.00, [255, 0,   0  ]],
+    ];
+    let lo = stops[0], hi = stops[stops.length - 1];
+    for (let i = 0; i < stops.length - 1; i++) {
+      if (intensity >= stops[i][0] && intensity <= stops[i + 1][0]) {
+        lo = stops[i]; hi = stops[i + 1]; break;
+      }
     }
+    const range = hi[0] - lo[0];
+    const t = range === 0 ? 0 : (intensity - lo[0]) / range;
+    const r = Math.round(lo[1][0] + t * (hi[1][0] - lo[1][0]));
+    const g = Math.round(lo[1][1] + t * (hi[1][1] - lo[1][1]));
+    const b = Math.round(lo[1][2] + t * (hi[1][2] - lo[1][2]));
+    return `rgb(${r},${g},${b})`;
   }
 
   function spaceColor(space: RentalSpace): string {
@@ -91,30 +103,63 @@ export default function FloorPlan({ spaces, scores, selectedSpace, onSelectSpace
           <pattern id="hatch-red" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
             <line x1="0" y1="0" x2="0" y2="6" stroke="#ef4444" strokeWidth="1" opacity="0.5" />
           </pattern>
+          {/* Heatmap blur filter */}
+          <filter id="heatblur" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="22" />
+          </filter>
+          {/* Heatmap legend gradient */}
+          <linearGradient id="heatLegendGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"   stopColor="rgb(0,0,255)" />
+            <stop offset="20%"  stopColor="rgb(0,100,255)" />
+            <stop offset="40%"  stopColor="rgb(0,220,150)" />
+            <stop offset="55%"  stopColor="rgb(0,200,0)" />
+            <stop offset="70%"  stopColor="rgb(200,255,0)" />
+            <stop offset="85%"  stopColor="rgb(255,140,0)" />
+            <stop offset="100%" stopColor="rgb(255,0,0)" />
+          </linearGradient>
         </defs>
 
         {/* Venue shell */}
         <rect x="50" y="50" width="700" height="560" rx="12" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
 
         {/* Zone backgrounds */}
-        {zoneAreas.map(area => {
-          const intensity = trafficByZone[area.zone] ?? 0;
-          return (
-            <g key={area.zone}>
-              <rect
-                x={area.x} y={area.y} width={area.w} height={area.h}
-                rx="6"
-                fill={showHeatmap ? heatColor(intensity) : `${ZONES[area.zone]?.color ?? '#94a3b8'}18`}
-                stroke={`${ZONES[area.zone]?.color ?? '#94a3b8'}44`}
-                strokeWidth="1.5"
-                strokeDasharray="4 3"
-              />
-              <text x={area.x + 8} y={area.y + 15} fontSize="9" fill={ZONES[area.zone]?.color ?? '#64748b'} fontFamily="system-ui" fontWeight="600" opacity="0.7">
-                {ZONES[area.zone]?.label}
-              </text>
-            </g>
-          );
-        })}
+        {zoneAreas.map(area => (
+          <g key={area.zone}>
+            <rect
+              x={area.x} y={area.y} width={area.w} height={area.h}
+              rx="6"
+              fill={showHeatmap ? 'transparent' : `${ZONES[area.zone]?.color ?? '#94a3b8'}18`}
+              stroke={`${ZONES[area.zone]?.color ?? '#94a3b8'}44`}
+              strokeWidth="1.5"
+              strokeDasharray="4 3"
+            />
+            <text x={area.x + 8} y={area.y + 15} fontSize="9" fill={ZONES[area.zone]?.color ?? '#64748b'} fontFamily="system-ui" fontWeight="600" opacity="0.7">
+              {ZONES[area.zone]?.label}
+            </text>
+          </g>
+        ))}
+
+        {/* ── Heatmap blobs (blurred radial ellipses) ── */}
+        {showHeatmap && (
+          <g filter="url(#heatblur)" opacity="0.82">
+            {zoneAreas.map(area => {
+              const intensity = trafficByZone[area.zone] ?? 0;
+              if (intensity < 0.02) return null;
+              const color = heatmapColor(intensity);
+              const cx = area.x + area.w / 2;
+              const cy = area.y + area.h / 2;
+              return (
+                <ellipse
+                  key={area.zone}
+                  cx={cx} cy={cy}
+                  rx={area.w * 0.58} ry={area.h * 0.6}
+                  fill={color}
+                  opacity={0.25 + intensity * 0.6}
+                />
+              );
+            })}
+          </g>
+        )}
 
         {/* Corridor guides */}
         <line x1="190" y1="60"  x2="190" y2="580" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="3 4" />
@@ -123,7 +168,7 @@ export default function FloorPlan({ spaces, scores, selectedSpace, onSelectSpace
 
         {/* Entrance / exit labels */}
         <text x="375" y="42"  fontSize="10" fill="#64748b" textAnchor="middle" fontFamily="system-ui">↓ MAIN ENTRANCE ↓</text>
-        <text x="375" y="622" fontSize="10" fill="#64748b" textAnchor="middle" fontFamily="system-ui">↑ EXIT / PLENARY HALL ↑</text>
+
 
         {/* Plenary hall reference */}
         <rect x="200" y="590" width="400" height="28" rx="4" fill="#e0e7ff" stroke="#a5b4fc" strokeWidth="1.5" />
@@ -204,7 +249,7 @@ export default function FloorPlan({ spaces, scores, selectedSpace, onSelectSpace
 
       </svg>
 
-      {/* Tier legend — outside SVG for readability */}
+      {/* Bottom bar — tier distribution + heatmap legend */}
       <div className="flex items-center gap-2 px-4 py-2.5 border-t border-slate-100">
         <span className="text-xs font-semibold text-slate-400 mr-1">Stand distribution</span>
         {(['S', 'A', 'B', 'C'] as const).map(t => (
@@ -214,6 +259,20 @@ export default function FloorPlan({ spaces, scores, selectedSpace, onSelectSpace
             <span className="text-xs text-slate-400 mr-1">stands</span>
           </div>
         ))}
+
+        {showHeatmap && (
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-xs font-semibold text-slate-400">Visitor Traffic</span>
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-slate-400">Low</span>
+              <div
+                className="w-24 h-2.5 rounded-full"
+                style={{ background: 'linear-gradient(to right, rgb(0,0,255), rgb(0,100,255), rgb(0,220,150), rgb(0,200,0), rgb(200,255,0), rgb(255,140,0), rgb(255,0,0))' }}
+              />
+              <span className="text-[10px] text-slate-400">High</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
