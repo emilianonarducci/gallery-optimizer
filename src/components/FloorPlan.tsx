@@ -28,7 +28,7 @@ interface Fixture {
 
 const FIXTURES: Fixture[] = [
   // Toilets: narrow vertical strips on west and east walls
-  { id: 'wc_w',    label: 'WC',          x: 63,  y: 222, w: 16, h: 96,  fill: '#f1f5f9', stroke: '#94a3b8', textColor: '#64748b', vertical: true,  hatch: 'grey' },
+  { id: 'wc_w',    label: 'WC',          x: 63,  y: 240, w: 16, h: 96,  fill: '#f1f5f9', stroke: '#94a3b8', textColor: '#64748b', vertical: true,  hatch: 'grey' },
   { id: 'wc_e',    label: 'WC',          x: 721, y: 222, w: 16, h: 96,  fill: '#f1f5f9', stroke: '#94a3b8', textColor: '#64748b', vertical: true,  hatch: 'grey' },
   // Emergency fire exits: lower section of east/west walls
   { id: 'fire_sw', label: 'EXIT',        x: 63,  y: 480, w: 16, h: 55,  fill: '#fee2e2', stroke: '#ef4444', textColor: '#ef4444', vertical: true,  hatch: 'red'  },
@@ -45,11 +45,6 @@ const FIXTURES: Fixture[] = [
 
 export default function FloorPlan({ spaces, scores, selectedSpace, onSelectSpace, showHeatmap, trafficByZone }: Props) {
   const scoreMap = Object.fromEntries(scores.map(s => [s.spaceId, s]));
-
-  const tierCounts = scores.reduce((acc, s) => {
-    acc[s.tier] = (acc[s.tier] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
 
   function heatmapColor(intensity: number): string {
     // Blue → Cyan → Green → Yellow → Orange → Red
@@ -90,6 +85,7 @@ export default function FloorPlan({ spaces, scores, selectedSpace, onSelectSpace
     { zone: 'central',        x: 200, y: 210, w: 460, h: 170 },
     { zone: 'food_area',      x: 200, y: 370, w: 280, h: 110 },
     { zone: 'south_exit',     x: 200, y: 480, w: 430, h: 110 },
+    { zone: 'plenary_hall',   x: 200, y: 590, w: 400, h: 28  },
   ];
 
   return (
@@ -133,9 +129,15 @@ export default function FloorPlan({ spaces, scores, selectedSpace, onSelectSpace
               strokeWidth="1.5"
               strokeDasharray="4 3"
             />
-            <text x={area.x + 8} y={area.y + 15} fontSize="9" fill={ZONES[area.zone]?.color ?? '#64748b'} fontFamily="system-ui" fontWeight="600" opacity="0.7">
-              {ZONES[area.zone]?.label}
-            </text>
+            {area.zone === 'plenary_hall' ? (
+              <text x={area.x + area.w / 2} y={area.y + 18} fontSize="10" fill="#4f46e5" textAnchor="middle" fontFamily="system-ui" fontWeight="700">
+                PLENARY HALL
+              </text>
+            ) : (
+              <text x={area.x + 8} y={area.y + 15} fontSize="9" fill="#000000" fontFamily="system-ui" fontWeight="600" opacity="0.7">
+                {ZONES[area.zone]?.label}
+              </text>
+            )}
           </g>
         ))}
 
@@ -169,10 +171,6 @@ export default function FloorPlan({ spaces, scores, selectedSpace, onSelectSpace
         {/* Entrance / exit labels */}
         <text x="375" y="42"  fontSize="10" fill="#64748b" textAnchor="middle" fontFamily="system-ui">↓ MAIN ENTRANCE ↓</text>
 
-
-        {/* Plenary hall reference */}
-        <rect x="200" y="590" width="400" height="28" rx="4" fill="#e0e7ff" stroke="#a5b4fc" strokeWidth="1.5" />
-        <text x="400" y="608" fontSize="10" fill="#4f46e5" textAnchor="middle" fontFamily="system-ui" fontWeight="600">PLENARY HALL</text>
 
         {/* ── Non-allocatable fixtures ── */}
         {FIXTURES.map(f => {
@@ -249,16 +247,8 @@ export default function FloorPlan({ spaces, scores, selectedSpace, onSelectSpace
 
       </svg>
 
-      {/* Bottom bar — tier distribution + heatmap legend */}
-      <div className="flex items-center gap-2 px-4 py-2.5 border-t border-slate-100">
-        <span className="text-xs font-semibold text-slate-400 mr-1">Stand distribution</span>
-        {(['S', 'A', 'B', 'C'] as const).map(t => (
-          <div key={t} className="flex items-center gap-1.5">
-            <span className="inline-flex items-center justify-center w-5 h-5 rounded text-white text-xs font-black" style={{ background: TIER_COLORS[t] }}>{t}</span>
-            <span className="text-sm font-bold text-slate-700">{tierCounts[t] ?? 0}</span>
-            <span className="text-xs text-slate-400 mr-1">stands</span>
-          </div>
-        ))}
+      {/* Bottom bar — heatmap legend */}
+      <div className="flex items-center gap-3 px-4 py-2.5 border-t border-slate-100 flex-wrap">
 
         {showHeatmap && (
           <div className="ml-auto flex items-center gap-2">

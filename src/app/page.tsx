@@ -37,8 +37,11 @@ export default function Home() {
 
   const trafficByZone = useMemo<Record<string, number>>(() => {
     const snapshot = TRAFFIC_DATA.filter(s => s.minuteOfDay === currentMinute);
-    const maxDevices = Math.max(...snapshot.map(s => s.devices), 1);
-    return Object.fromEntries(snapshot.map(s => [s.zone, s.devices / maxDevices]));
+    // Normalize each zone against its own daily max so zones can show independent colors
+    return Object.fromEntries(snapshot.map(s => {
+      const zoneMax = Math.max(...TRAFFIC_DATA.filter(d => d.zone === s.zone).map(d => d.devices), 1);
+      return [s.zone, s.devices / zoneMax];
+    }));
   }, [currentMinute]);
 
   const selectedSpaceData = selectedSpace ? activeSpaces.find(s => s.id === selectedSpace) : null;

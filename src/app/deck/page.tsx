@@ -289,11 +289,11 @@ export default function DeckPage() {
                 <thead><tr><th>Zone</th><th>Avg devices</th><th>Traffic Score</th></tr></thead>
                 <tbody>
                   {[
-                    ['Central Area', 318, 100],
-                    ['North Entrance', 225, 71],
-                    ['Food & Break', 210, 66],
-                    ['South Exit', 148, 47],
-                    ['East / West Wings', 115, 36],
+                    ['Zone 4', 318, 100],
+                    ['Zone 1', 225, 71],
+                    ['Zone 5', 210, 66],
+                    ['Zone 6', 148, 47],
+                    ['Zone 2 / Zone 3', 115, 36],
                   ].map(([z, d, s]) => (
                     <tr key={z as string}><td>{z}</td><td>{d}</td><td><strong style={{ color: '#6366f1' }}>{s}</strong></td></tr>
                   ))}
@@ -302,7 +302,7 @@ export default function DeckPage() {
             </div>
           </div>
           <div>
-            <h3 style={{ marginBottom: 12 }}>Intraday profile — Central Area</h3>
+            <h3 style={{ marginBottom: 12 }}>Intraday profile — Zone 4</h3>
             {/* Mini bar chart simulation */}
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 100, marginBottom: 8 }}>
               {[10,20,35,55,80,90,95,85,75,80,70,65,85,100,90,80,75,70,65,80,90,85,70,55,40,30,20,10,5,0].map((v, i) => (
@@ -315,7 +315,7 @@ export default function DeckPage() {
 
             <div style={{ background: '#eef2ff', borderRadius: 10, padding: 14 }}>
               <div style={{ fontSize: 12, color: '#6366f1', fontWeight: 700, marginBottom: 6 }}>Key observation</div>
-              <p>The Central Area maintains elevated traffic from 09:30 to 18:00 with two distinct spikes: morning session arrival (09:45) and post-lunch networking (15:15). This sustained exposure justifies a premium score.</p>
+              <p>Zone 4 maintains elevated traffic from 09:30 to 18:00 with two distinct spikes: morning session arrival (09:45) and post-lunch networking (15:15). This sustained exposure justifies a premium score.</p>
             </div>
           </div>
         </div>
@@ -336,7 +336,7 @@ export default function DeckPage() {
               Peak Score = (zone_peak_devices / global_peak) × 100
             </div>
             <p style={{ marginBottom: 10 }}>Captures the maximum simultaneous presence observed in a zone. High peak = opportunity for high-impact activations (product launches, live demos).</p>
-            <p style={{ marginBottom: 12 }}><strong>Peak events identified:</strong> registration surge 09:30–10:00 (North Entrance), lunch break 12:30 (Food & Break), networking aperitivo 17:30 (exit zones).</p>
+            <p style={{ marginBottom: 12 }}><strong>Peak events identified:</strong> registration surge 09:30–10:00 (Zone 1), lunch break 12:30 (Zone 5), networking aperitivo 17:30 (exit zones).</p>
 
             <div style={{ border: '1px solid #fde68a', background: '#fffbeb', borderRadius: 8, padding: 12 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#b45309', marginBottom: 4 }}>25% weight rationale</div>
@@ -410,11 +410,11 @@ export default function DeckPage() {
           <div>
             <h3 style={{ marginBottom: 12 }}>Dwell time by zone</h3>
             {[
-              { zone: 'Food & Break', dwell: 22, score: 100, color: '#10b981' },
-              { zone: 'Central Area', dwell: 14, score: 64, color: '#6366f1' },
-              { zone: 'North Entrance', dwell: 10, score: 45, color: '#6366f1' },
-              { zone: 'East / West Wings', dwell: 8, score: 36, color: '#3b82f6' },
-              { zone: 'South Exit', dwell: 5, score: 23, color: '#8b5cf6' },
+              { zone: 'Zone 5', dwell: 22, score: 100, color: '#10b981' },
+              { zone: 'Zone 4', dwell: 14, score: 64, color: '#6366f1' },
+              { zone: 'Zone 1', dwell: 10, score: 45, color: '#6366f1' },
+              { zone: 'Zone 2 / Zone 3', dwell: 8, score: 36, color: '#3b82f6' },
+              { zone: 'Zone 6', dwell: 5, score: 23, color: '#8b5cf6' },
             ].map(item => (
               <div key={item.zone} style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
@@ -428,7 +428,7 @@ export default function DeckPage() {
             ))}
 
             <div style={{ marginTop: 16, background: '#f8fafc', borderRadius: 10, padding: 14, border: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>Food & Break advantage</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>Zone 5 advantage</div>
               <p>Visitors at catering areas are stationary for 10–25 min. Even if the zone is smaller, the captive attention window makes it commercially attractive for sampling and direct conversations.</p>
             </div>
           </div>
@@ -541,10 +541,10 @@ export default function DeckPage() {
             </thead>
             <tbody>
               {[
-                ['Traffic Score', '35%', 'WiFi devices / 15 min', 'avg_devices / max_avg × 100', '0 – 100', 'Central Area'],
-                ['Peak Score', '25%', 'WiFi devices / 15 min', 'peak_devices / global_peak × 100', '0 – 100', 'Central Area'],
+                ['Traffic Score', '35%', 'WiFi devices / 15 min', 'avg_devices / max_avg × 100', '0 – 100', 'Zone 4'],
+                ['Peak Score', '25%', 'WiFi devices / 15 min', 'peak_devices / global_peak × 100', '0 – 100', 'Zone 4'],
                 ['Visibility Score', '25%', 'Stand typology', 'Lookup: anchor=100, corner=80…', '40 – 100', 'Any island stand'],
-                ['Dwell Time Score', '15%', 'WiFi ratio (devices/passBy)', '(avg/passBy) × 15 → normalised', '0 – 100', 'Food & Break'],
+                ['Dwell Time Score', '15%', 'WiFi ratio (devices/passBy)', '(avg/passBy) × 15 → normalised', '0 – 100', 'Zone 5'],
               ].map(row => (
                 <tr key={row[0]}>
                   {row.map((cell, i) => (

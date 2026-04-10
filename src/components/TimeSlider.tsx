@@ -19,9 +19,9 @@ export default function TimeSlider({ samples, currentMinute, onChange }: Props) 
     return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
   }
 
-  // Aggregate devices per time slot for sparkline
+  // Aggregate devices per time slot for sparkline (exclude plenary_hall – separate space)
   const totalPerTime = times.map(t => {
-    const ss = samples.filter(s => s.minuteOfDay === t);
+    const ss = samples.filter(s => s.minuteOfDay === t && s.zone !== 'plenary_hall');
     return { t, v: ss.reduce((a, s) => a + s.devices, 0) };
   });
   const maxTotal = Math.max(...totalPerTime.map(d => d.v));
@@ -44,7 +44,7 @@ export default function TimeSlider({ samples, currentMinute, onChange }: Props) 
             <rect
               key={t}
               x={i * barW} y={40 - h} width={Math.max(barW - 1, 1)} height={h}
-              fill={isActive ? '#6366f1' : v / maxTotal > 0.7 ? '#fbbf24' : '#c7d2fe'}
+              fill={isActive ? '#6366f1' : (t >= 660 && t <= 960) ? '#fbbf24' : '#c7d2fe'}
               rx="1"
               style={{ cursor: 'pointer' }}
               onClick={() => onChange(t)}
@@ -71,6 +71,22 @@ export default function TimeSlider({ samples, currentMinute, onChange }: Props) 
         <span>{minuteToLabel(minMin)}</span>
         <span className="text-slate-500 text-xs">← drag to explore traffic over time</span>
         <span>{minuteToLabel(maxMin)}</span>
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 mt-2">
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-3 rounded-sm" style={{ background: '#6366f1' }} />
+          <span className="text-xs text-slate-500">Selected</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-3 rounded-sm" style={{ background: '#fbbf24' }} />
+          <span className="text-xs text-slate-500">Peak hours (11:00–16:00)</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-3 rounded-sm" style={{ background: '#c7d2fe' }} />
+          <span className="text-xs text-slate-500">Normal traffic</span>
+        </div>
       </div>
     </div>
   );

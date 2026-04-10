@@ -48,10 +48,11 @@ export const SPACES: RentalSpace[] = [
 ];
 
 export const ZONES: Record<string, { label: string; color: string }> = {
-  north_entrance: { label: 'North Entrance', color: '#6366f1' },
-  west_wing: { label: 'West Wing', color: '#3b82f6' },
-  east_wing: { label: 'East Wing', color: '#06b6d4' },
-  central: { label: 'Central Area', color: '#f59e0b' },
-  food_area: { label: 'Food & Break', color: '#10b981' },
-  south_exit: { label: 'South Exit', color: '#8b5cf6' },
+  north_entrance: { label: 'Zone 1', color: '#6366f1' },
+  west_wing: { label: 'Zone 2', color: '#3b82f6' },
+  east_wing: { label: 'Zone 3', color: '#06b6d4' },
+  central: { label: 'Zone 4', color: '#f59e0b' },
+  food_area: { label: 'Zone 5', color: '#10b981' },
+  south_exit: { label: 'Zone 6', color: '#8b5cf6' },
+  plenary_hall: { label: 'Plenary Hall', color: '#4f46e5' },
 };
